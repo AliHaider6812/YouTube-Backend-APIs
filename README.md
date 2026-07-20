@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # 🎬 YouTube Backend API
 
 A RESTful, YouTube-inspired backend built with **Node.js**, **Express.js**, **Prisma ORM**, and **PostgreSQL**. This project demonstrates a clean layered architecture, secure authentication, full CRUD operations, and backend best practices.
@@ -219,3 +220,7 @@ This project was built to practice:
 ## Author
 
 **Ali Haider**
+=======
+# YouTube-Backend-APIs
+Clone of YouTube Backend APIs
+>>>>>>> 0a3cf9977a1cb056d9a90b4e858db8197d1132ac
