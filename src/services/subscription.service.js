@@ -1,10 +1,11 @@
 const prisma = require("../config/prisma");
 const ApiError = require("../utils/ApiError");
+const logger = require("../utils/logger");
 
 const subscribeChannel = async (channelId, subscriberId) => {
   // Cannot subscribe to yourself
   if (channelId === subscriberId) {
-    throw new ApiError(403,"You cannot subscribe to your own channel.");
+    throw new ApiError(403, "You cannot subscribe to your own channel.");
   }
 
   // Check channel exists
@@ -15,7 +16,7 @@ const subscribeChannel = async (channelId, subscriberId) => {
   });
 
   if (!channel) {
-    throw new ApiError(404,"Channel not found.");
+    throw new ApiError(404, "Channel not found.");
   }
 
   // Prevent duplicate subscription
@@ -29,11 +30,11 @@ const subscribeChannel = async (channelId, subscriberId) => {
   });
 
   if (existingSubscription) {
-    throw new ApiError(409,"Already subscribed.");
+    throw new ApiError(409, "Already subscribed.");
   }
 
   // Subscribe
-  return await prisma.subscription.create({
+  const subscription = await prisma.subscription.create({
     data: {
       subscriberId,
       channelId,
@@ -48,6 +49,12 @@ const subscribeChannel = async (channelId, subscriberId) => {
       },
     },
   });
+
+  logger.info(
+    `User ${subscriberId} subscribed to channel ${channel.username} (${channelId})`
+  );
+
+  return subscription;
 };
 
 const unsubscribeChannel = async (channelId, subscriberId) => {
@@ -59,10 +66,17 @@ const unsubscribeChannel = async (channelId, subscriberId) => {
         channelId,
       },
     },
+    include: {
+      channel: {
+        select: {
+          username: true,
+        },
+      },
+    },
   });
 
   if (!subscription) {
-    throw new ApiError(404,"Subscription not found.");
+    throw new ApiError(404, "Subscription not found.");
   }
 
   // Delete subscription
@@ -74,6 +88,10 @@ const unsubscribeChannel = async (channelId, subscriberId) => {
       },
     },
   });
+
+  logger.info(
+    `User ${subscriberId} unsubscribed from channel ${subscription.channel.username} (${channelId})`
+  );
 };
 
 const getChannelSubscribers = async (channelId) => {
@@ -117,9 +135,10 @@ const getMySubscriptions = async (subscriberId) => {
     },
   });
 };
+
 module.exports = {
   subscribeChannel,
   unsubscribeChannel,
   getChannelSubscribers,
-  getMySubscriptions
+  getMySubscriptions,
 };

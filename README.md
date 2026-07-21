@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # 🎬 YouTube Backend API
 
 A RESTful, YouTube-inspired backend built with **Node.js**, **Express.js**, **Prisma ORM**, and **PostgreSQL**. This project demonstrates a clean layered architecture, secure authentication, full CRUD operations, and backend best practices.
@@ -21,6 +20,7 @@ A RESTful, YouTube-inspired backend built with **Node.js**, **Express.js**, **Pr
 - [Environment Variables](#environment-variables)
 - [API Overview](#api-overview)
 - [API Testing](#api-testing)
+- [Security & Monitoring](#security--monitoring)
 - [Learning Objectives](#learning-objectives)
 - [Author](#author)
 
@@ -37,6 +37,8 @@ A RESTful, YouTube-inspired backend built with **Node.js**, **Express.js**, **Pr
 | Auth | JWT, Bcrypt |
 | File Uploads | Multer, Cloudinary |
 | Validation | Zod |
+| Logging | Winston |
+| Rate Limiting | express-rate-limit |
 
 ---
 
@@ -90,10 +92,11 @@ A RESTful, YouTube-inspired backend built with **Node.js**, **Express.js**, **Pr
 youtube-backend/
 ├── prisma/            # Prisma schema & migrations
 ├── public/            # Static/public assets
+├── logs/              # Winston log files (error.log, combined.log)
 ├── src/
-│   ├── config/         # App & DB configuration
+│   ├── config/         # App & DB configuration, Winston logger config
 │   ├── controllers/    # Request handlers
-│   ├── middlewares/    # Auth, error handling, uploads
+│   ├── middlewares/    # Auth, error handling, uploads, rate limiter
 │   ├── routes/         # API route definitions
 │   ├── services/       # Business logic
 │   ├── utils/          # Helpers (ApiError, ApiResponse, asyncHandler)
@@ -118,6 +121,8 @@ youtube-backend/
 - JWT Authentication & Route Authorization
 - Pagination & Filtering
 - Cloudinary File Uploads
+- Rate Limiting on Sensitive & Public Routes
+- Structured Logging with Winston
 - Clean, Modular, Scalable Code
 
 ---
@@ -178,6 +183,13 @@ REFRESH_TOKEN_EXPIRY=10d
 CLOUDINARY_CLOUD_NAME=your_cloud_name
 CLOUDINARY_API_KEY=your_api_key
 CLOUDINARY_API_SECRET=your_api_secret
+
+# Rate Limiting
+RATE_LIMIT_WINDOW_MS=900000
+RATE_LIMIT_MAX_REQUESTS=100
+
+# Logging
+LOG_LEVEL=info
 ```
 
 > ⚠️ Never commit your `.env` file. Add it to `.gitignore`.
@@ -205,6 +217,69 @@ All endpoints were tested using **Postman**. A Postman collection can be added a
 
 ---
 
+## Security & Monitoring
+
+### 🚦 Rate Limiting
+
+Rate limiting protects the API from abuse, brute-force login attempts, and accidental traffic spikes by capping how many requests a single IP can make in a given time window.
+
+Implemented using **`express-rate-limit`** as global and route-specific middleware:
+
+```js
+const rateLimit = require("express-rate-limit");
+
+const limiter = rateLimit({
+  windowMs: process.env.RATE_LIMIT_WINDOW_MS || 15 * 60 * 1000, // 15 minutes
+  max: process.env.RATE_LIMIT_MAX_REQUESTS || 100,               // limit per IP
+  message: "Too many requests, please try again later.",
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+module.exports = limiter;
+```
+
+Applied globally in `app.js`, and can be applied more strictly on sensitive routes like login/register:
+
+```js
+app.use(limiter);
+// or stricter on auth routes
+router.post("/login", authLimiter, loginController);
+```
+
+### 📝 Logging with Winston
+
+Instead of relying on scattered `console.log` statements, this project uses **Winston** for structured, leveled logging (info, warn, error), written both to the console and to log files for later debugging.
+
+```js
+const winston = require("winston");
+
+const logger = winston.createLogger({
+  level: process.env.LOG_LEVEL || "info",
+  format: winston.format.combine(
+    winston.format.timestamp(),
+    winston.format.json()
+  ),
+  transports: [
+    new winston.transports.File({ filename: "logs/error.log", level: "error" }),
+    new winston.transports.File({ filename: "logs/combined.log" }),
+    new winston.transports.Console({ format: winston.format.simple() }),
+  ],
+});
+
+module.exports = logger;
+```
+
+Used throughout the app in place of `console.log`:
+```js
+logger.info("Server running on port 8000");
+logger.error("Database connection failed", error);
+```
+
+This gives a clear, searchable history of requests, errors, and server events — much more useful than console output once the app grows.
+
+---
+
 ## Learning Objectives
 
 This project was built to practice:
@@ -213,6 +288,8 @@ This project was built to practice:
 - Authentication & Authorization (JWT, Bcrypt)
 - Database relationships & schema design
 - File uploads with Multer & Cloudinary
+- API security with rate limiting
+- Structured logging with Winston
 - Backend architecture best practices
 
 ---
@@ -220,7 +297,3 @@ This project was built to practice:
 ## Author
 
 **Ali Haider**
-=======
-# YouTube-Backend-APIs
-Clone of YouTube Backend APIs
->>>>>>> 0a3cf9977a1cb056d9a90b4e858db8197d1132ac

@@ -1,5 +1,6 @@
 const prisma = require("../config/prisma");
 const ApiError = require("../utils/ApiError");
+const logger = require("../utils/logger");
 
 const toggleVideoLike = async (videoId, userId) => {
   // 1. Check video exists
@@ -10,7 +11,7 @@ const toggleVideoLike = async (videoId, userId) => {
   });
 
   if (!video) {
-    throw new ApiError(404,"Video not found.");
+    throw new ApiError(404, "Video not found.");
   }
 
   // 2. Check if already liked
@@ -34,6 +35,8 @@ const toggleVideoLike = async (videoId, userId) => {
       },
     });
 
+    logger.info(`User ${userId} unliked video ${videoId}`);
+
     return {
       liked: false,
       message: "Video unliked successfully.",
@@ -47,6 +50,8 @@ const toggleVideoLike = async (videoId, userId) => {
       videoId,
     },
   });
+
+  logger.info(`User ${userId} liked video ${videoId}`);
 
   return {
     liked: true,
@@ -63,7 +68,7 @@ const toggleCommentLike = async (commentId, userId) => {
   });
 
   if (!comment) {
-    throw new ApiError(404,"Comment not found.");
+    throw new ApiError(404, "Comment not found.");
   }
 
   // 2. Check existing like
@@ -87,6 +92,8 @@ const toggleCommentLike = async (commentId, userId) => {
       },
     });
 
+    logger.info(`User ${userId} unliked comment ${commentId}`);
+
     return {
       liked: false,
       message: "Comment unliked successfully.",
@@ -100,6 +107,8 @@ const toggleCommentLike = async (commentId, userId) => {
       commentId,
     },
   });
+
+  logger.info(`User ${userId} liked comment ${commentId}`);
 
   return {
     liked: true,
@@ -116,7 +125,7 @@ const toggleTweetLike = async (tweetId, userId) => {
   });
 
   if (!tweet) {
-    throw new ApiError(404,"Tweet not found.");
+    throw new ApiError(404, "Tweet not found.");
   }
 
   // 2. Check existing like
@@ -140,6 +149,8 @@ const toggleTweetLike = async (tweetId, userId) => {
       },
     });
 
+    logger.info(`User ${userId} unliked tweet ${tweetId}`);
+
     return {
       liked: false,
       message: "Tweet unliked successfully.",
@@ -153,6 +164,8 @@ const toggleTweetLike = async (tweetId, userId) => {
       tweetId,
     },
   });
+
+  logger.info(`User ${userId} liked tweet ${tweetId}`);
 
   return {
     liked: true,
@@ -188,7 +201,5 @@ module.exports = {
   toggleVideoLike,
   toggleCommentLike,
   toggleTweetLike,
-  getLikedVideos
-
-
+  getLikedVideos,
 };

@@ -1,6 +1,7 @@
 const prisma = require("../config/prisma");
 const uploadOnCloudinary = require("../utils/cloudinary");
 const ApiError = require("../utils/ApiError");
+const logger = require("../utils/logger");
 
 const uploadVideo = async (req) => {
   const { title, description } = req.body;
@@ -9,11 +10,11 @@ const uploadVideo = async (req) => {
   const thumbnailFile = req.files?.thumbnail?.[0];
 
   if (!videoFile) {
-    throw new ApiError(400,"Video file is required.");
+    throw new ApiError(400, "Video file is required.");
   }
 
   if (!thumbnailFile) {
-    throw new ApiError(400,"Thumbnail is required.");
+    throw new ApiError(400, "Thumbnail is required.");
   }
 
   const uploadedVideo = await uploadOnCloudinary(videoFile.path);
@@ -30,9 +31,12 @@ const uploadVideo = async (req) => {
     },
   });
 
+  logger.info(
+    `Video uploaded: "${video.title}" by user ${req.user.id}`
+  );
+
   return video;
 };
-
 
 const getAllVideos = async ({
   page = 1,
@@ -84,12 +88,11 @@ const getVideoById = async (videoId) => {
   });
 
   if (!video) {
-    throw new ApiError(404,"Video not found");
+    throw new ApiError(404, "Video not found");
   }
 
   return video;
 };
-
 
 const updateVideo = async (videoId, userId, data) => {
   const video = await prisma.video.findUnique({
@@ -99,14 +102,14 @@ const updateVideo = async (videoId, userId, data) => {
   });
 
   if (!video) {
-    throw new ApiError(404,"Video not found.");
+    throw new ApiError(404, "Video not found.");
   }
 
   if (video.ownerId !== userId) {
-    throw new ApiError(401,"Unauthorized.");
+    throw new ApiError(401, "Unauthorized.");
   }
 
-  return await prisma.video.update({
+  const updatedVideo = await prisma.video.update({
     where: {
       id: videoId,
     },
@@ -115,6 +118,12 @@ const updateVideo = async (videoId, userId, data) => {
       description: data.description,
     },
   });
+
+  logger.info(
+    `Video updated: "${updatedVideo.title}" by user ${userId}`
+  );
+
+  return updatedVideo;
 };
 
 const deleteVideo = async (videoId, userId) => {
@@ -125,11 +134,11 @@ const deleteVideo = async (videoId, userId) => {
   });
 
   if (!video) {
-    throw new ApiError(404,"Video not found.");
+    throw new ApiError(404, "Video not found.");
   }
 
   if (video.ownerId !== userId) {
-    throw new ApiError(401,"Unauthorized.");
+    throw new ApiError(401, "Unauthorized.");
   }
 
   await prisma.video.delete({
@@ -137,11 +146,13 @@ const deleteVideo = async (videoId, userId) => {
       id: videoId,
     },
   });
+
+  logger.info(
+    `Video deleted: "${video.title}" by user ${userId}`
+  );
 };
-const togglePublishStatus = async (
-  videoId,
-  userId
-) => {
+
+const togglePublishStatus = async (videoId, userId) => {
   const video = await prisma.video.findUnique({
     where: {
       id: videoId,
@@ -149,14 +160,14 @@ const togglePublishStatus = async (
   });
 
   if (!video) {
-    throw new ApiError(404,"Video not found.");
+    throw new ApiError(404, "Video not found.");
   }
 
   if (video.ownerId !== userId) {
-    throw new ApiError(401,"Unauthorized.");
+    throw new ApiError(401, "Unauthorized.");
   }
 
-  return await prisma.video.update({
+  const updatedVideo = await prisma.video.update({
     where: {
       id: videoId,
     },
@@ -164,12 +175,19 @@ const togglePublishStatus = async (
       isPublished: !video.isPublished,
     },
   });
+
+  logger.info(
+    `Publish status changed for video "${updatedVideo.title}" by user ${userId}. Published: ${updatedVideo.isPublished}`
+  );
+
+  return updatedVideo;
 };
+
 module.exports = {
   uploadVideo,
   getAllVideos,
   getVideoById,
   updateVideo,
   deleteVideo,
-  togglePublishStatus
+  togglePublishStatus,
 };

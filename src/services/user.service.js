@@ -3,9 +3,12 @@ const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const uploadOnCloudinary = require("../utils/cloudinary");
 const ApiError = require("../utils/ApiError");
+const logger = require("../utils/logger");
 
-const {generateAccessToken,generateRefreshToken,} = require("../utils/generateTokens");
-
+const {
+  generateAccessToken,
+  generateRefreshToken,
+} = require("../utils/generateTokens");
 
 const registerUser = async (data) => {
   const { username, email, fullName, avatarUrl, password } = data;
@@ -17,7 +20,7 @@ const registerUser = async (data) => {
   });
 
   if (existingUser) {
-    throw new ApiError(400,"Username or Email already exists.");
+    throw new ApiError(400, "Username or Email already exists.");
   }
 
   const hashedPassword = await bcrypt.hash(password, 10);
@@ -31,6 +34,8 @@ const registerUser = async (data) => {
       password: hashedPassword,
     },
   });
+
+  logger.info(`New user registered: ${user.email}`);
 
   return {
     id: user.id,
@@ -47,13 +52,11 @@ const loginUser = async (data) => {
   const { email, password } = data;
 
   const user = await prisma.user.findUnique({
-    where: {
-      email,
-    },
+    where: { email },
   });
 
   if (!user) {
-    throw new ApiError(400,"Invalid email or password.");
+    throw new ApiError(400, "Invalid email or password.");
   }
 
   const isPasswordCorrect = await bcrypt.compare(
@@ -62,41 +65,38 @@ const loginUser = async (data) => {
   );
 
   if (!isPasswordCorrect) {
-    throw new ApiError(400,"Invalid email or password.");
+    throw new ApiError(400, "Invalid email or password.");
   }
-  const accessToken = generateAccessToken(user);
 
+  const accessToken = generateAccessToken(user);
   const refreshToken = generateRefreshToken(user);
-  
-    await prisma.user.update({
-        where: {
-          id: user.id,
-        },
-        data: {
-          refreshToken,
-        },
-    });
-    return {
-      user: {
-        id: user.id,
-        username: user.username,
-        email: user.email,
-        fullName: user.fullName,
-      },
-      accessToken,
-      refreshToken,
-    };
+
+  await prisma.user.update({
+    where: { id: user.id },
+    data: { refreshToken },
+  });
+
+  logger.info(`User logged in: ${user.email}`);
+
+  return {
+    user: {
+      id: user.id,
+      username: user.username,
+      email: user.email,
+      fullName: user.fullName,
+    },
+    accessToken,
+    refreshToken,
+  };
 };
 
 const logoutUser = async (userId) => {
   await prisma.user.update({
-    where: {
-      id: userId,
-    },
-    data: {
-      refreshToken: null,
-    },
+    where: { id: userId },
+    data: { refreshToken: null },
   });
+
+  logger.info(`User logged out: ${userId}`);
 
   return true;
 };
@@ -105,7 +105,7 @@ const refreshAccessToken = async (data) => {
   const { refreshToken } = data;
 
   if (!refreshToken) {
-    throw new ApiError(400,"Refresh token is required.");
+    throw new ApiError(400, "Refresh token is required.");
   }
 
   const decoded = jwt.verify(
@@ -114,20 +114,20 @@ const refreshAccessToken = async (data) => {
   );
 
   const user = await prisma.user.findUnique({
-    where: {
-      id: decoded.id,
-    },
+    where: { id: decoded.id },
   });
 
   if (!user) {
-    throw new ApiError(404,"User not found.");
+    throw new ApiError(404, "User not found.");
   }
 
   if (user.refreshToken !== refreshToken) {
-    throw new ApiError(400,"Invalid refresh token.");
+    throw new ApiError(400, "Invalid refresh token.");
   }
 
   const newAccessToken = generateAccessToken(user);
+
+  logger.info(`Access token refreshed for user: ${user.id}`);
 
   return {
     accessToken: newAccessToken,
@@ -135,10 +135,8 @@ const refreshAccessToken = async (data) => {
 };
 
 const getCurrentUser = async (userId) => {
-  const user = await prisma.user.findUnique({
-    where: {
-      id: userId,
-    },
+  return await prisma.user.findUnique({
+    where: { id: userId },
     select: {
       id: true,
       username: true,
@@ -150,10 +148,7 @@ const getCurrentUser = async (userId) => {
       updatedAt: true,
     },
   });
-
-  return user;
 };
-
 
 const changePassword = async (userId, data) => {
   const { oldPassword, newPassword } = data;
@@ -168,7 +163,7 @@ const changePassword = async (userId, data) => {
   );
 
   if (!isPasswordCorrect) {
-    throw new ApiError(400,"Old password is incorrect.");
+    throw new ApiError(400, "Old password is incorrect.");
   }
 
   const hashedPassword = await bcrypt.hash(newPassword, 10);
@@ -179,15 +174,13 @@ const changePassword = async (userId, data) => {
       password: hashedPassword,
     },
   });
+
+  logger.info(`Password changed for user: ${userId}`);
 };
 
-
-
 const updateAccount = async (userId, data) => {
-  return await prisma.user.update({
-    where: {
-      id: userId,
-    },
+  const updatedUser = await prisma.user.update({
+    where: { id: userId },
     data: {
       username: data.username,
       email: data.email,
@@ -201,15 +194,17 @@ const updateAccount = async (userId, data) => {
       avatarUrl: true,
     },
   });
+
+  logger.info(`Account updated for user: ${userId}`);
+
+  return updatedUser;
 };
 
 const updateAvatar = async (userId, filePath) => {
   const uploaded = await uploadOnCloudinary(filePath);
 
   const user = await prisma.user.update({
-    where: {
-      id: userId,
-    },
+    where: { id: userId },
     data: {
       avatarUrl: uploaded.secure_url,
     },
@@ -220,16 +215,16 @@ const updateAvatar = async (userId, filePath) => {
     },
   });
 
+  logger.info(`Avatar updated for user: ${userId}`);
+
   return user;
 };
 
 const updateCoverImage = async (userId, filePath) => {
   const uploaded = await uploadOnCloudinary(filePath);
 
-  return await prisma.user.update({
-    where: {
-      id: userId,
-    },
+  const user = await prisma.user.update({
+    where: { id: userId },
     data: {
       coverImageUrl: uploaded.secure_url,
     },
@@ -239,13 +234,17 @@ const updateCoverImage = async (userId, filePath) => {
       coverImageUrl: true,
     },
   });
+
+  logger.info(`Cover image updated for user: ${userId}`);
+
+  return user;
 };
 
 const getAllUsers = async (loggedInUserId) => {
   return await prisma.user.findMany({
     where: {
       id: {
-        not: loggedInUserId,//exclude logged in user
+        not: loggedInUserId, // exclude logged in user
       },
     },
     select: {
@@ -261,6 +260,7 @@ const getAllUsers = async (loggedInUserId) => {
     },
   });
 };
+
 module.exports = {
   registerUser,
   loginUser,
@@ -271,5 +271,5 @@ module.exports = {
   updateAccount,
   updateAvatar,
   updateCoverImage,
-  getAllUsers
+  getAllUsers,
 };

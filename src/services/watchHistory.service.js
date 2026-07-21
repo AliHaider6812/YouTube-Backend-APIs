@@ -1,6 +1,6 @@
 const prisma = require("../config/prisma");
-const { get } = require("../routes");
 const ApiError = require("../utils/ApiError");
+const logger = require("../utils/logger");
 
 const addToWatchHistory = async (videoId, userId) => {
   // Check video exists
@@ -11,7 +11,7 @@ const addToWatchHistory = async (videoId, userId) => {
   });
 
   if (!video) {
-    throw new ApiErrorError(404,"Video not found.");
+    throw new ApiError(404, "Video not found.");
   }
 
   // Prevent duplicate history
@@ -29,7 +29,7 @@ const addToWatchHistory = async (videoId, userId) => {
   }
 
   // Create watch history
-  return await prisma.watchHistory.create({
+  const history = await prisma.watchHistory.create({
     data: {
       userId,
       videoId,
@@ -45,7 +45,14 @@ const addToWatchHistory = async (videoId, userId) => {
       },
     },
   });
+
+  logger.info(
+    `Video "${history.video.title}" added to watch history by user ${userId}`
+  );
+
+  return history;
 };
+
 const getWatchHistory = async (userId) => {
   return await prisma.watchHistory.findMany({
     where: {
@@ -86,10 +93,10 @@ const updateWatchProgress = async (
   });
 
   if (!history) {
-    throw new ApiError(404,"Watch history not found.");
+    throw new ApiError(404, "Watch history not found.");
   }
 
-  return await prisma.watchHistory.update({
+  const updatedHistory = await prisma.watchHistory.update({
     where: {
       userId_videoId: {
         userId,
@@ -110,6 +117,12 @@ const updateWatchProgress = async (
       },
     },
   });
+
+  logger.info(
+    `Watch progress updated for video "${updatedHistory.video.title}" by user ${userId}. Progress: ${progressSeconds}s`
+  );
+
+  return updatedHistory;
 };
 
 const removeFromWatchHistory = async (
@@ -123,10 +136,17 @@ const removeFromWatchHistory = async (
         videoId,
       },
     },
+    include: {
+      video: {
+        select: {
+          title: true,
+        },
+      },
+    },
   });
 
   if (!history) {
-    throw new ApiError(404,"Watch history not found.");
+    throw new ApiError(404, "Watch history not found.");
   }
 
   await prisma.watchHistory.delete({
@@ -137,10 +157,15 @@ const removeFromWatchHistory = async (
       },
     },
   });
+
+  logger.info(
+    `Video "${history.video.title}" removed from watch history by user ${userId}`
+  );
 };
+
 module.exports = {
   addToWatchHistory,
   getWatchHistory,
   updateWatchProgress,
-  removeFromWatchHistory
+  removeFromWatchHistory,
 };

@@ -1,5 +1,6 @@
 const prisma = require("../config/prisma");
 const ApiError = require("../utils/ApiError");
+const logger = require("../utils/logger");
 
 const createTweet = async (content, userId) => {
 
@@ -19,6 +20,10 @@ const createTweet = async (content, userId) => {
       },
     },
   });
+
+  logger.info(
+    `Tweet created by user ${userId} (Tweet ID: ${tweet.id})`
+  );
 
   return tweet;
 };
@@ -41,7 +46,6 @@ const getAllTweets = async () => {
   });
 };
 
-
 const updateTweet = async (tweetId, content, userId) => {
   const tweet = await prisma.tweet.findUnique({
     where: {
@@ -50,14 +54,14 @@ const updateTweet = async (tweetId, content, userId) => {
   });
 
   if (!tweet) {
-    throw new ApiError(404,"Tweet not found.");
+    throw new ApiError(404, "Tweet not found.");
   }
 
   if (tweet.ownerId !== userId) {
-    throw new ApiError(401,"You are not authorized to update this tweet.");
+    throw new ApiError(401, "You are not authorized to update this tweet.");
   }
 
-  return await prisma.tweet.update({
+  const updatedTweet = await prisma.tweet.update({
     where: {
       id: tweetId,
     },
@@ -74,6 +78,12 @@ const updateTweet = async (tweetId, content, userId) => {
       },
     },
   });
+
+  logger.info(
+    `Tweet updated by user ${userId} (Tweet ID: ${tweetId})`
+  );
+
+  return updatedTweet;
 };
 
 const deleteTweet = async (tweetId, userId) => {
@@ -84,11 +94,11 @@ const deleteTweet = async (tweetId, userId) => {
   });
 
   if (!tweet) {
-    throw new ApiError(404,"Tweet not found.");
+    throw new ApiError(404, "Tweet not found.");
   }
 
   if (tweet.ownerId !== userId) {
-    throw new ApiError(401,"You are not authorized to delete this tweet.");
+    throw new ApiError(401, "You are not authorized to delete this tweet.");
   }
 
   await prisma.tweet.delete({
@@ -96,10 +106,15 @@ const deleteTweet = async (tweetId, userId) => {
       id: tweetId,
     },
   });
+
+  logger.info(
+    `Tweet deleted by user ${userId} (Tweet ID: ${tweetId})`
+  );
 };
+
 module.exports = {
   createTweet,
   getAllTweets,
   updateTweet,
-  deleteTweet
+  deleteTweet,
 };

@@ -1,5 +1,6 @@
 const prisma = require("../config/prisma");
 const ApiError = require("../utils/ApiError");
+const logger = require("../utils/logger");
 
 const createPlaylist = async (data, userId) => {
   const { name, description } = data;
@@ -12,9 +13,12 @@ const createPlaylist = async (data, userId) => {
     },
   });
 
+  logger.info(
+    `Playlist "${playlist.name}" created by user ${userId}`
+  );
+
   return playlist;
 };
-
 
 const getMyPlaylists = async (userId) => {
   return await prisma.playlist.findMany({
@@ -58,12 +62,11 @@ const getPlaylistById = async (playlistId) => {
   });
 
   if (!playlist) {
-    throw new ApiError(404,"Playlist not found.");
+    throw new ApiError(404, "Playlist not found.");
   }
 
   return playlist;
 };
-
 
 const addVideoToPlaylist = async (playlistId, videoId, userId) => {
   // 1. Check playlist exists
@@ -74,12 +77,12 @@ const addVideoToPlaylist = async (playlistId, videoId, userId) => {
   });
 
   if (!playlist) {
-    throw new ApiError(404,"Playlist not found.");
+    throw new ApiError(404, "Playlist not found.");
   }
 
   // 2. Verify logged-in user owns the playlist
   if (playlist.createdById !== userId) {
-    throw new ApiError(401,"You are not authorized to modify this playlist.");
+    throw new ApiError(401, "You are not authorized to modify this playlist.");
   }
 
   // 3. Check video exists
@@ -90,7 +93,7 @@ const addVideoToPlaylist = async (playlistId, videoId, userId) => {
   });
 
   if (!video) {
-    throw new ApiError(404,"Video not found.");
+    throw new ApiError(404, "Video not found.");
   }
 
   // 4. Prevent duplicate entry
@@ -104,7 +107,7 @@ const addVideoToPlaylist = async (playlistId, videoId, userId) => {
   });
 
   if (existingVideo) {
-    throw new ApiError(409,"Video already exists in the playlist.");
+    throw new ApiError(409, "Video already exists in the playlist.");
   }
 
   // 5. Add video to playlist
@@ -125,9 +128,12 @@ const addVideoToPlaylist = async (playlistId, videoId, userId) => {
     },
   });
 
+  logger.info(
+    `Video "${playlistVideo.video.title}" added to playlist "${playlist.name}" by user ${userId}`
+  );
+
   return playlistVideo;
 };
-
 
 const removeVideoFromPlaylist = async (playlistId, videoId, userId) => {
   // 1. Check playlist exists
@@ -138,12 +144,12 @@ const removeVideoFromPlaylist = async (playlistId, videoId, userId) => {
   });
 
   if (!playlist) {
-    throw new ApiError(404,"Playlist not found.");
+    throw new ApiError(404, "Playlist not found.");
   }
 
   // 2. Verify logged-in user owns the playlist
   if (playlist.createdById !== userId) {
-    throw new ApiError(401,"You are not authorized to modify this playlist.");
+    throw new ApiError(401, "You are not authorized to modify this playlist.");
   }
 
   // 3. Check video exists in the playlist
@@ -154,10 +160,17 @@ const removeVideoFromPlaylist = async (playlistId, videoId, userId) => {
         videoId,
       },
     },
+    include: {
+      video: {
+        select: {
+          title: true,
+        },
+      },
+    },
   });
 
   if (!playlistVideo) {
-    throw new ApiError(404,"Video not found in playlist.");
+    throw new ApiError(404, "Video not found in playlist.");
   }
 
   // 4. Remove video from playlist
@@ -170,11 +183,14 @@ const removeVideoFromPlaylist = async (playlistId, videoId, userId) => {
     },
   });
 
+  logger.info(
+    `Video "${playlistVideo.video.title}" removed from playlist "${playlist.name}" by user ${userId}`
+  );
+
   return {
     message: "Video removed from playlist successfully.",
   };
 };
-
 
 const deletePlaylist = async (playlistId, userId) => {
   // 1. Check playlist exists
@@ -185,12 +201,12 @@ const deletePlaylist = async (playlistId, userId) => {
   });
 
   if (!playlist) {
-    throw new ApiError(404,"Playlist not found.");
+    throw new ApiError(404, "Playlist not found.");
   }
 
   // 2. Verify logged-in user owns the playlist
   if (playlist.createdById !== userId) {
-    throw new ApiError(401,"You are not authorized to delete this playlist.");
+    throw new ApiError(401, "You are not authorized to delete this playlist.");
   }
 
   // 3. Delete playlist
@@ -200,13 +216,18 @@ const deletePlaylist = async (playlistId, userId) => {
     },
   });
 
+  logger.info(
+    `Playlist "${playlist.name}" deleted by user ${userId}`
+  );
+
   return;
 };
+
 module.exports = {
   createPlaylist,
   getMyPlaylists,
   getPlaylistById,
   addVideoToPlaylist,
   removeVideoFromPlaylist,
-  deletePlaylist
+  deletePlaylist,
 };
