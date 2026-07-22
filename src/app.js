@@ -1,4 +1,5 @@
 const apiLimiter = require("./middlewares/rateLimit.middleware");
+const helmet = require("helmet");
 
 const express = require("express");
 const cors = require("cors");
@@ -12,6 +13,7 @@ const logger = require("./utils/logger");
 const routes = require("./routes");
 
 const app = express();
+app.disable("x-powered-by");
 
 app.use(cors());
 
@@ -20,6 +22,8 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 app.use(cookieParser());
+
+app.use(helmet());
 
 app.use(
   morgan("combined", {
